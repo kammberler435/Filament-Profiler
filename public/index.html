@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filament Profiler</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <img src="icon.svg" alt="" width="28" height="28">
+    <div>
+      <h1>Filament Profiler</h1>
+      <p class="sub">Filamentprofile aus Hersteller- und Slicer-Daten</p>
+    </div>
+  </div>
+  <div class="datastate">
+    <span id="dataChip" class="chip">Daten werden geladen …</span>
+    <button id="btnUpdate" class="btn desktop-only">Daten aktualisieren</button>
+    <button id="btnSources" class="btn ghost" title="Datenquellen und Einstellungen">Quellen</button>
+  </div>
+</header>
+
+<div id="updateBar" class="updatebar" hidden>
+  <div class="progress"><div id="updateProgress"></div></div>
+  <span id="updatePhase"></span>
+</div>
+
+<main>
+  <section class="pickers">
+    <div class="card picker">
+      <div class="card-head"><span class="step">1</span><h2>Hersteller</h2><span id="brandCount" class="muted"></span></div>
+      <input id="brandSearch" class="search" type="search" placeholder="Hersteller suchen …" autocomplete="off">
+      <ul id="brandList" class="list" role="listbox" aria-label="Hersteller"></ul>
+    </div>
+    <div class="card picker">
+      <div class="card-head"><span class="step">2</span><h2>Material</h2><span id="productCount" class="muted"></span></div>
+      <div id="familyChips" class="chips"></div>
+      <input id="productSearch" class="search" type="search" placeholder="Produkt suchen …" autocomplete="off">
+      <ul id="productList" class="list" role="listbox" aria-label="Material"><li class="empty">Zuerst einen Hersteller wählen.</li></ul>
+    </div>
+    <div class="card picker">
+      <div class="card-head"><span class="step">3</span><h2>Drucker</h2><span id="printerCount" class="muted"></span></div>
+      <div id="localPrinters" class="chips"></div>
+      <input id="printerSearch" class="search" type="search" placeholder="Drucker suchen (z. B. P1S, Kobra S1, MK4S) …" autocomplete="off">
+      <ul id="printerList" class="list" role="listbox" aria-label="Drucker"></ul>
+      <div class="row nozzle-row">
+        <label>Düse <select id="nozzleSelect" disabled></select></label>
+        <label id="variantWrap" hidden>Variante <select id="variantSelect"></select></label>
+      </div>
+    </div>
+  </section>
+
+  <section id="profileSection" class="card profile" hidden>
+    <div class="profile-head">
+      <div class="profile-title">
+        <span class="step">4</span>
+        <div>
+          <h2 id="profileTitle">Profil</h2>
+          <p id="profileSub" class="muted"></p>
+        </div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div id="warnings"></div>
+
+    <div class="export">
+      <label class="grow">Profilname <input id="profileName" type="text"></label>
+      <div class="seg" id="targetSeg" role="radiogroup" aria-label="Ziel-Slicer">
+        <button data-target="orca" role="radio">OrcaSlicer</button>
+        <button data-target="snapmaker" role="radio">Snapmaker Orca</button>
+        <button data-target="bambu" role="radio">Bambu Studio</button>
+        <button data-target="prusa" role="radio">PrusaSlicer / SuperSlicer</button>
+        <button data-target="cura" role="radio">Cura</button>
+      </div>
+    </div>
+    <div class="export opts">
+      <label id="optVersion" hidden title="Exportiert nur Einstellungen, die diese Slicer-Version kennt">Slicer-Version <select id="versionSelect"></select></label>
+      <label id="optPlate" hidden>Druckplatte
+        <select id="plateSelect">
+          <option value="textured">Texturiertes PEI</option>
+          <option value="hot">Glattes PEI / High Temp</option>
+          <option value="eng">Engineering Plate</option>
+          <option value="cool">Cool Plate</option>
+        </select>
+      </label>
+      <label id="optColor" hidden>Farbe <input id="colorName" type="text" placeholder="z. B. Schwarz" size="10"> <input id="colorCode" type="color" value="#ffc924"></label>
+      <label class="check" title="Sonst übernimmt der Slicer die Retraktion aus dem Druckerprofil (empfohlen)."><input id="explicitRetraction" type="checkbox"> Retraktion fest ins Profil schreiben</label>
+      <span class="spacer"></span>
+      <span id="schemaInfo" class="muted small"></span>
+      <button id="btnInstall" class="btn" hidden>In Slicer installieren</button>
+      <button id="btnDownload" class="btn primary">Profil speichern</button>
+    </div>
+    <p id="exportMsg" class="msg" hidden></p>
+
+    <div id="fieldGroups" class="groups"></div>
+
+    <details class="sources-box">
+      <summary>Verwendete Quellen</summary>
+      <ul id="usedSources"></ul>
+    </details>
+  </section>
+
+  <section id="emptyHint" class="card hint">
+    <h2>So geht's</h2>
+    <ol>
+      <li>Filament-Hersteller wählen (z. B. Bambu Lab, eSUN, Prusament).</li>
+      <li>Material/Produkt wählen (PLA Basic, PETG HF, PA6-CF …).</li>
+      <li>Drucker und Düse wählen.</li>
+      <li>Werte prüfen – jede Zahl zeigt ihre Quelle. Ziel-Slicer wählen und speichern<span class="desktop-only"> oder direkt installieren</span>.</li>
+    </ol>
+    <p class="muted">Farbcodes: <b class="t-exact">grün</b> = offizielles Profil für genau diesen Drucker, <b class="t-ofd">blau</b> = Herstellerdatenblatt, <b class="t-default">orange</b> = Standardwert ohne Herstellerdaten (bitte prüfen).</p>
+  </section>
+</main>
+
+<dialog id="sourcesDialog">
+  <form method="dialog" class="dlg">
+    <div class="dlg-head"><h2>Datenquellen</h2><button class="btn ghost" value="close" aria-label="Schließen">✕</button></div>
+    <p class="muted">Die App lädt ausschließlich strukturierte, öffentlich bereitgestellte Daten (keine Webseiten-Scraper). robots.txt wird vor jedem Abruf geprüft. Jeder Wert speichert Quelle, Datei und Abrufzeit.</p>
+    <table class="srcTable"><thead><tr><th>Quelle</th><th>Stand / Version</th><th>Abgerufen</th><th>Status</th></tr></thead><tbody id="srcRows"></tbody></table>
+    <div class="desktop-only">
+      <h3>Installierte Slicer</h3>
+      <ul id="localList" class="plain"></ul>
+      <h3>Einstellungen</h3>
+      <label class="check"><input id="autoUpdate" type="checkbox"> Beim Start nach neuen Daten suchen und automatisch aktualisieren</label>
+      <h3>Protokoll</h3>
+      <pre id="updateLog" class="log"></pre>
+    </div>
+    <div class="web-only">
+      <h3>Aktualisierung</h3>
+      <p class="muted small">Die Daten werden täglich automatisch neu zusammengestellt (GitHub Actions). Geprüft wird gegen den Quellcode der jeweils gewählten Slicer-Version.</p>
+    </div>
+    <h3>Lizenzen</h3>
+    <p class="muted small">Profildaten: OrcaSlicer, Snapmaker Orca, Bambu Studio und PrusaSlicer (AGPL-3.0) · Ultimaker fdm_materials (CC0-1.0) · Open Filament Database (MIT) · SpoolmanDB (MIT). Alle Werte verlinken auf ihre Originalquelle. Angaben ohne Gewähr – Profile vor dem Druck prüfen und kalibrieren.</p>
+  </form>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
